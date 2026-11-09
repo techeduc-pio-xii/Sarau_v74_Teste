@@ -443,3 +443,117 @@
 .video-picker-panel-active{display:flex!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important;width:100%!important}
 .student-video-preview{display:block!important;width:min(220px,100%)!important;height:124px!important;object-fit:contain!important;background:#211b1d!important;border:1px solid #d7c4c9!important;border-radius:8px!important}
 .video-picker-button-add{background:#267653!important;color:#fff!important}
+
+
+/* v77 — quadro quadrado para prévia do vídeo do aluno no iPad */
+.video-picker-panel-active{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:10px!important;
+  flex-wrap:wrap!important;
+  width:100%!important;
+  min-width:0!important;
+}
+.student-video-square{
+  width:148px!important;
+  height:148px!important;
+  flex:0 0 148px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  background:#211b1d!important;
+  border:2px solid #d7c4c9!important;
+  border-radius:10px!important;
+}
+.student-video-square .student-video-preview{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  background:#211b1d!important;
+  border:0!important;
+  border-radius:0!important;
+}
+.video-file-name{
+  display:block!important;
+  max-width:180px!important;
+  overflow-wrap:anywhere!important;
+  color:#573a45!important;
+  font-size:12px!important;
+}
+@media(max-width:700px){
+  .video-picker-panel-active{gap:8px!important}
+  .student-video-square{width:128px!important;height:128px!important;flex-basis:128px!important}
+  .video-picker-panel-active .video-help{flex-basis:100%!important}
+}
+
+
+/* v78 — mantém o padrão visual da aplicação e evita cortes no painel de vídeo do iPad. */
+.assets.video-mode{
+  display:flex!important;
+  flex-direction:row!important;
+  flex-wrap:wrap!important;
+  align-items:stretch!important;
+  justify-content:flex-start!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
+}
+.video-picker-panel-active{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  flex-wrap:wrap!important;
+  gap:10px!important;
+  width:100%!important;
+  min-width:0!important;
+  padding:10px!important;
+  box-sizing:border-box!important;
+  text-transform:uppercase!important;
+}
+.video-picker-panel-active > strong,
+.video-picker-panel-active .video-file-name,
+.video-picker-panel-active .video-help,
+.video-picker-panel-active .video-picker-button{
+  text-transform:uppercase!important;
+}
+.student-video-square{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  flex:0 0 148px!important;
+  width:148px!important;
+  height:148px!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+.student-video-square .student-video-preview{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+}
+.video-picker-button{
+  white-space:normal!important;
+  max-width:100%!important;
+  text-transform:uppercase!important;
+}
+.video-file-name{
+  overflow-wrap:anywhere!important;
+  text-transform:uppercase!important;
+}
+@media(max-width:700px){
+  .student-video-square{width:128px!important;height:128px!important;flex-basis:128px!important}
+  .video-picker-panel-active{gap:8px!important}
+}
