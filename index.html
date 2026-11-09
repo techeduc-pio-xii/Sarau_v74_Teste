@@ -1,0 +1,20 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><title>Meu Livro Ganha Vida | Pio XII</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<section id="chooser" aria-label="Escolha do livro"><div class="cover-layout"><div class="cover-brand"><img src="assets/capa_embutida_01.png" alt="Colégio Franciscano Pio XII" class="cover-logo"></div><div class="cover-heading"><span class="cover-kicker">SARAU · 1º ANO DO ENSINO FUNDAMENTAL</span><h1>Meu Livro<br><em>Ganha Vida!</em></h1><p>Escolha uma história e dê vida aos personagens com sua imaginação!</p></div><div class="cover-shelf"><div class="cover-shelf-title"><span class="cover-star" aria-hidden="true">✦</span><strong>QUAL HISTÓRIA VAMOS ANIMAR?</strong><span class="cover-star" aria-hidden="true">✦</span></div><div id="books"></div></div><div class="cover-footer">COLÉGIO FRANCISCANO PIO XII <span aria-hidden="true">·</span> SARAU 1º ANO</div></div></section>
+<section id="editor" class="hidden">
+<header class="library"><div class="library-head"><img class="school-logo" src="assets/capa_embutida_02.png" alt="Colégio Franciscano Pio XII"></div><div class="library-content"><nav class="tabs" id="tabs"></nav><div class="assets" id="assets"></div></div><div class="top-files" id="fileActions"><div id="chosenBookTitle" class="chosen-book-title" aria-live="polite"></div></div></header>
+<div class="middle"><div class="stage-shell"><div class="stage" id="stage"></div></div><aside class="editing">
+<section class="panel fig"><div class="panel-icon"><span class="name">Figuras</span></div><div class="panel-buttons" id="figureActions"></div></section>
+
+<section class="panel voice"><div class="panel-icon"><span class="name">Voz</span></div><div class="panel-buttons" id="voiceActions"></div><div class="voice-progress" id="voiceProgress" aria-label="Progresso do áudio"><div class="voice-wave" id="voiceWave" aria-hidden="true"></div><input type="range" id="voiceSeek" min="0" max="100" value="0" step="1" aria-label="Posição do áudio" disabled></div></section>
+
+</aside></div>
+<footer class="timeline-panel"><div class="timeline" id="timeline"></div><div class="bottom-frames" id="frameActions"></div></footer>
+<input type="file" id="projectFile" accept=".zip,.json,application/zip,application/json" hidden>
+<input type="file" id="studentVideoFile" accept="video/*,.mp4,.mov,.m4v" hidden>
+<audio id="audio" preload="metadata" hidden></audio>
+</section>
+<div id="status" class="status hidden" role="status"></div>
+<script src="script.js" defer></script>
+</body></html>
