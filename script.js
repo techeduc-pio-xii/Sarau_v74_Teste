@@ -488,34 +488,57 @@ async function exportAnimation(){
 let testVideo=null,videoPreviewFrame=null,videoStartAt=0,studentVideoBlob=null,studentVideoName='',studentVideoId=null;
 function ensureTestVideo(){return testVideo}
 function setStudentVideo(blob,name='video-do-aluno',id=null){
- if(!blob||!blob.type?.startsWith('video/'))throw new Error('Selecione um arquivo de vídeo válido.');
- if(testVideo){testVideo.pause();testVideo.removeAttribute('src');testVideo.load();if(testVideo.dataset.objectUrl)URL.revokeObjectURL(testVideo.dataset.objectUrl)}
- studentVideoBlob=blob;studentVideoName=name;studentVideoId=id;if(id)setActiveLocalStudentVideo(id).catch(()=>{});
+ if(!blob||(!String(blob.type||'').startsWith('video/')&&!/\.(mp4|mov|m4v|webm|ogv)$/i.test(name||''))){
+  throw new Error('ESCOLHA UM ARQUIVO DE VÍDEO VÁLIDO.');
+ }
+ if(testVideo){
+  testVideo.pause();testVideo.removeAttribute('src');testVideo.load();
+  if(testVideo.dataset.objectUrl)URL.revokeObjectURL(testVideo.dataset.objectUrl);
+ }
+ studentVideoBlob=blob;studentVideoName=name;studentVideoId=id;
+ if(id)setActiveLocalStudentVideo(id).catch(()=>{});
  const url=URL.createObjectURL(blob),v=document.createElement('video');
- // Safari/iPadOS: vídeo inline e inicialmente mudo para permitir a decodificação
- // do primeiro quadro sem depender de autoplay com áudio.
- v.preload='auto';v.playsInline=true;v.setAttribute('playsinline','');
- v.setAttribute('webkit-playsinline','');v.muted=true;v.defaultMuted=true;
- v.autoplay=false;v.src=url;v.dataset.objectUrl=url;
- testVideo=v;
+ v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
+ v.playsInline=true;v.preload='auto';v.muted=true;v.defaultMuted=true;
+ v.autoplay=false;v.controls=false;v.src=url;v.dataset.objectUrl=url;testVideo=v;
  const refreshVideoView=()=>{
+  if(v!==testVideo)return;
   if(category==='Vídeos')renderAssets();
   if(frames.some(f=>f.showVideo))render();
  };
- v.addEventListener('error',()=>message('Não foi possível reproduzir este vídeo neste iPad. Tente exportá-lo como MP4 com vídeo H.264.'),{once:true});
- v.addEventListener('loadedmetadata',()=>{
-  // No Safari móvel, às vezes o quadro só fica disponível para o Canvas
-  // depois que a reprodução é iniciada explicitamente.
-  const warmup=v.play();
-  if(warmup&&typeof warmup.then==='function'){
-   warmup.then(()=>{requestAnimationFrame(()=>{refreshVideoView();v.pause();refreshVideoView()})})
-    .catch(()=>refreshVideoView());
-  }else refreshVideoView();
+ v.addEventListener('error',()=>{
+  if(v===testVideo)message('NÃO FOI POSSÍVEL REPRODUZIR ESTE VÍDEO. NO IPAD, PREFIRA MP4 COM VÍDEO H.264.');
  },{once:true});
- v.addEventListener('loadeddata',refreshVideoView,{once:true});
- v.addEventListener('canplay',refreshVideoView,{once:true});
+ ['loadedmetadata','loadeddata','canplay','playing','seeked'].forEach(n=>v.addEventListener(n,refreshVideoView));
  v.load();
  if(category==='Vídeos')renderAssets();
+ return v;
+}
+// Inicia a decodificação ainda dentro do gesto de escolha do arquivo (Safari/iPad).
+function prepareStudentVideoForIOS(v){
+ if(!v)return;
+ let finished=false;
+ const finish=()=>{
+  if(finished||v!==testVideo)return;
+  finished=true;
+  try{v.pause()}catch(e){}
+  if(v.readyState>=2){
+   if(category==='Vídeos')renderAssets();
+   if(frames.some(f=>f.showVideo))render();
+  }
+ };
+ const hasFrameCallback=typeof v.requestVideoFrameCallback==='function';
+ if(hasFrameCallback){try{v.requestVideoFrameCallback(()=>finish())}catch(e){}}
+ const onReady=()=>finish();
+ v.addEventListener('loadeddata',onReady,{once:true});
+ v.addEventListener('canplay',onReady,{once:true});
+ try{
+  const promise=v.play();
+  if(promise&&typeof promise.then==='function'){
+   promise.then(()=>{if(!hasFrameCallback&&v.readyState>=2)finish()})
+    .catch(()=>{if(v.readyState>=2)finish()});
+  }else if(!hasFrameCallback&&v.readyState>=2)finish();
+ }catch(e){if(v.readyState>=2)finish()}
 }
 async function restoreLocalStudentVideo(){
  try{
@@ -527,21 +550,23 @@ const videoInput=$('studentVideoFile');
 videoInput.addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
  try{
-  if(!file.type.startsWith('video/'))throw new Error('Escolha um arquivo de vídeo.');
-  if(file.size>500*1024*1024)throw new Error('O vídeo ultrapassa 500 MB. Escolha um arquivo menor para evitar falta de espaço no iPad.');
-  setStudentVideo(file,file.name);
-  // Ao terminar a seleção, já coloca o vídeo no quadro atual.
+  const isVideo=(file.type||'').startsWith('video/')||/\.(mp4|mov|m4v|webm|ogv)$/i.test(file.name||'');
+  if(!isVideo)throw new Error('ESCOLHA UM ARQUIVO DE VÍDEO.');
+  if(file.size>500*1024*1024)throw new Error('O VÍDEO ULTRAPASSA 500 MB. ESCOLHA UM ARQUIVO MENOR.');
+  const video=setStudentVideo(file,file.name);
+  prepareStudentVideoForIOS(video);
   insertStudentAt();
-  message('Vídeo carregado. Guardando uma cópia local neste iPad…');
+  message('VÍDEO CARREGADO. SALVANDO NESTE IPAD…');
   try{
    studentVideoId=await putLocalStudentVideo(file,file.name);
    if(navigator.storage?.persist){try{await navigator.storage.persist()}catch(e){}}
-   message('Vídeo salvo localmente neste iPad. Ele não foi enviado para a internet.');if(category==='Vídeos')renderAssets();
+   message('VÍDEO SALVO NESTE IPAD. NÃO FOI ENVIADO PARA A INTERNET.');
+   if(category==='Vídeos')renderAssets();
   }catch(storageError){
    console.warn('Vídeo carregado, mas não persistido:',storageError);
-   message('Vídeo carregado para esta sessão, mas não foi possível guardá-lo para a próxima aula. Libere espaço e tente novamente.');
+   message('VÍDEO CARREGADO, MAS NÃO FOI POSSÍVEL SALVÁ-LO PARA A PRÓXIMA AULA.');
   }
- }catch(err){message(err.message||'Não foi possível carregar o vídeo.')}
+ }catch(err){message(String(err.message||'NÃO FOI POSSÍVEL CARREGAR O VÍDEO.').toLocaleUpperCase('pt-BR'))}
  finally{e.target.value=''}
 });
 function drawKeyedFrame(ctx,v){
@@ -565,46 +590,49 @@ function insertStudentAt(x=50,y=53){
  selected='student';render();message('ARRASTE O VÍDEO PELA CENA. MARQUE OS QUADROS EM QUE DESEJA APARECER')
 }
 function renderVideoLibrary(root){
- // Mostra o vídeo selecionado e oferece ações explícitas para trocar ou inserir na cena.
  const panel=document.createElement('div');
  panel.className='video-picker-panel video-picker-panel-active';
  const heading=document.createElement('strong');
- heading.textContent=testVideo?'VÍDEO SELECIONADO':'ADICIONAR VÍDEO';
+ heading.className='video-picker-heading';
+ heading.textContent=testVideo?'SEU VÍDEO':'CARREGAR VÍDEO';
  panel.append(heading);
+ const controls=document.createElement('div');
+ controls.className='video-picker-controls';
  const choose=document.createElement('button');
- choose.type='button';
- choose.className='video-picker-button';
- choose.textContent=testVideo?'TROCAR VÍDEO':'SELECIONAR VÍDEO';
+ choose.type='button';choose.className='video-picker-button';
+ choose.textContent=testVideo?'CARREGAR OUTRO VÍDEO':'CARREGAR VÍDEO';
  choose.setAttribute('aria-label',choose.textContent);
  choose.addEventListener('click',()=>videoInput.click());
- panel.append(choose);
- if(testVideo && studentVideoBlob){
+ controls.append(choose);
+ if(testVideo&&studentVideoBlob){
+  const square=document.createElement('div');square.className='student-video-square';
   const preview=document.createElement('video');
-  preview.className='student-video-preview';
-  preview.controls=true;
-  preview.playsInline=true;
-  preview.setAttribute('playsinline','');
-  preview.preload='metadata';
+  preview.className='student-video-preview';preview.controls=true;preview.playsInline=true;
+  preview.setAttribute('playsinline','');preview.setAttribute('webkit-playsinline','');
+  preview.preload='metadata';preview.muted=true;
   preview.src=testVideo.dataset.objectUrl||URL.createObjectURL(studentVideoBlob);
-  preview.setAttribute('aria-label','Prévia do vídeo selecionado');
-  panel.append(preview);
-  const add=document.createElement('button');
-  add.type='button';
+  preview.setAttribute('aria-label','PRÉVIA DO VÍDEO');
+  preview.addEventListener('play',()=>{
+   if(testVideo&&testVideo.paused){try{const p=testVideo.play();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+  });
+  preview.addEventListener('pause',()=>{
+   if(testVideo&&!testVideo.paused)testVideo.pause();
+   if(frames.some(f=>f.showVideo))render();
+  });
+  square.append(preview);controls.append(square);
+  const fileName=document.createElement('span');fileName.className='video-file-name';
+  fileName.textContent=(studentVideoName||'VÍDEO DO ALUNO').toLocaleUpperCase('pt-BR');
+  controls.append(fileName);
+  const add=document.createElement('button');add.type='button';
   add.className='video-picker-button video-picker-button-add';
-  add.textContent='ADICIONAR À CENA';
-  add.addEventListener('click',()=>insertStudentAt());
-  panel.append(add);
-  const note=document.createElement('span');
-  note.className='video-help';
-  note.textContent='O vídeo será colocado no quadro atual. Você poderá arrastá-lo para posicionar.';
-  panel.append(note);
+  add.textContent='ADICIONAR À CENA';add.addEventListener('click',()=>insertStudentAt());
+  controls.append(add);
  }else{
-  const note=document.createElement('span');
-  note.className='video-help';
-  note.textContent='Selecione um vídeo salvo no app Arquivos deste iPad.';
-  panel.append(note);
+  const note=document.createElement('span');note.className='video-help';
+  note.textContent='ESCOLHA UM VÍDEO NO APP ARQUIVOS DO IPAD.';
+  controls.append(note);
  }
- root.append(panel);
+ panel.append(controls);root.append(panel);
 }
 
 function videoStartIndex(snapshot){const i=snapshot.findIndex(f=>f.showVideo);if(i>=0)return i;const j=snapshot.findIndex(f=>f.videoStart);return j<0?0:j}
