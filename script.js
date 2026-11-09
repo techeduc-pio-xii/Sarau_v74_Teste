@@ -165,7 +165,7 @@ function render(){renderStage();renderTimeline();figButtons.forEach(b=>b.disable
 function togglePlay(){
  if(playing){stopPlay();return}
  if(frames.some(f=>f.showVideo)&&!testVideo){message('Este projeto utiliza um vídeo. Abra a aba Vídeos e selecione o arquivo salvo neste iPad.');return}
- playing=true;playBtn.setAttribute('aria-label','Parar animação');selected=null;videoStartAt=-1;if(frames.some(f=>f.showVideo)){const v=ensureTestVideo();v.pause();v.currentTime=0;videoStartAt=videoStartIndex(frames);}
+ playing=true;playBtn.setAttribute('aria-label','Parar animação');selected=null;videoStartAt=-1;if(frames.some(f=>f.showVideo)){const v=ensureTestVideo();v.pause();v.muted=false;v.currentTime=0;videoStartAt=videoStartIndex(frames);}
  const studentBusy=()=>videoStartAt>=0&&testVideo&&!testVideo.paused&&!testVideo.ended;
  const audio=$('audio');
  // With a narration, the audio clock determines which frame is shown.
@@ -492,10 +492,29 @@ function setStudentVideo(blob,name='video-do-aluno',id=null){
  if(testVideo){testVideo.pause();testVideo.removeAttribute('src');testVideo.load();if(testVideo.dataset.objectUrl)URL.revokeObjectURL(testVideo.dataset.objectUrl)}
  studentVideoBlob=blob;studentVideoName=name;studentVideoId=id;if(id)setActiveLocalStudentVideo(id).catch(()=>{});
  const url=URL.createObjectURL(blob),v=document.createElement('video');
- v.preload='auto';v.playsInline=true;v.setAttribute('playsinline','');v.muted=false;v.src=url;v.dataset.objectUrl=url;
+ // Safari/iPadOS: vídeo inline e inicialmente mudo para permitir a decodificação
+ // do primeiro quadro sem depender de autoplay com áudio.
+ v.preload='auto';v.playsInline=true;v.setAttribute('playsinline','');
+ v.setAttribute('webkit-playsinline','');v.muted=true;v.defaultMuted=true;
+ v.autoplay=false;v.src=url;v.dataset.objectUrl=url;
  testVideo=v;
- v.addEventListener('error',()=>message('Não foi possível abrir este vídeo. Tente um arquivo MP4 ou MOV compatível com o iPad.'),{once:true});
- v.addEventListener('loadeddata',()=>{if(category==='Vídeos')renderAssets();if(frames.some(f=>f.showVideo))render();},{once:true});
+ const refreshVideoView=()=>{
+  if(category==='Vídeos')renderAssets();
+  if(frames.some(f=>f.showVideo))render();
+ };
+ v.addEventListener('error',()=>message('Não foi possível reproduzir este vídeo neste iPad. Tente exportá-lo como MP4 com vídeo H.264.'),{once:true});
+ v.addEventListener('loadedmetadata',()=>{
+  // No Safari móvel, às vezes o quadro só fica disponível para o Canvas
+  // depois que a reprodução é iniciada explicitamente.
+  const warmup=v.play();
+  if(warmup&&typeof warmup.then==='function'){
+   warmup.then(()=>{requestAnimationFrame(()=>{refreshVideoView();v.pause();refreshVideoView()})})
+    .catch(()=>refreshVideoView());
+  }else refreshVideoView();
+ },{once:true});
+ v.addEventListener('loadeddata',refreshVideoView,{once:true});
+ v.addEventListener('canplay',refreshVideoView,{once:true});
+ v.load();
  if(category==='Vídeos')renderAssets();
 }
 async function restoreLocalStudentVideo(){
