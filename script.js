@@ -607,7 +607,7 @@ function renderVideoLibrary(root){
  if(testVideo&&studentVideoBlob){
   const square=document.createElement('div');square.className='student-video-square';
   const preview=document.createElement('video');
-  preview.className='student-video-preview';preview.controls=true;preview.playsInline=true;
+  preview.className='student-video-preview';preview.controls=false;preview.playsInline=true;
   preview.setAttribute('playsinline','');preview.setAttribute('webkit-playsinline','');
   preview.preload='metadata';preview.muted=true;
   preview.src=testVideo.dataset.objectUrl||URL.createObjectURL(studentVideoBlob);

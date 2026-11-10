@@ -685,3 +685,31 @@
  .student-video-square{width:64px!important;height:64px!important;flex-basis:64px!important}
  .video-file-name{max-width:75px!important;flex-basis:75px!important;font-size:8px!important}
 }
+
+
+/* V80 — miniatura do vídeo no mesmo padrão e tamanho das miniaturas de personagens. */
+#editor .assets.video-mode .student-video-square{
+ width:clamp(48px,5vw,65px)!important;
+ height:clamp(48px,5vw,65px)!important;
+ flex:0 0 clamp(48px,5vw,65px)!important;
+ padding:3px!important;
+ border:2px solid #e5ba6c!important;
+ border-radius:10px!important;
+ background:#fff!important;
+ box-sizing:border-box!important;
+ overflow:hidden!important;
+}
+#editor .assets.video-mode .student-video-square .student-video-preview{
+ display:block!important;
+ width:100%!important;
+ height:100%!important;
+ max-width:100%!important;
+ max-height:100%!important;
+ object-fit:contain!important;
+ background:#fff!important;
+ border:0!important;
+ border-radius:5px!important;
+}
+@media(max-height:750px){
+ #editor .assets.video-mode .student-video-square{width:clamp(39px,4vw,50px)!important;height:clamp(39px,4vw,50px)!important;flex-basis:clamp(39px,4vw,50px)!important}
+}
