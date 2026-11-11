@@ -713,3 +713,8 @@
 @media(max-height:750px){
  #editor .assets.video-mode .student-video-square{width:clamp(39px,4vw,50px)!important;height:clamp(39px,4vw,50px)!important;flex-basis:clamp(39px,4vw,50px)!important}
 }
+
+/* Rótulos apenas nos novos controles de histórico, distintos de girar. */
+#figureActions .image-history-action{gap:0!important}
+#figureActions .image-history-action svg{height:20px!important}
+#figureActions .image-history-action span{font-size:9px;font-weight:700;line-height:1.1}
