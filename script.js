@@ -36,6 +36,10 @@ Object.assign(icons,{
  undoEdit:'<path d="M20 12H4m6-6-6 6 6 6"/>',
  redoEdit:'<path d="M4 12h16m-6-6 6 6-6 6"/>'
 });
+Object.assign(icons,{
+ freeze:'<path d="M12 2v20M4 7l16 10M20 7 4 17M8 3l4 3 4-3M8 21l4-3 4 3M2 11l4-1-1-4M22 11l-4-1 1-4M2 13l4 1-1 4M22 13l-4 1 1 4"/>',
+ fire:'<path d="M12 22c4.4 0 7-3.1 7-7.1 0-3.1-1.8-5.4-4.5-8.9-.1 2.2-1.1 3.4-2.2 4.1C12.5 6.2 10.7 3.8 8 2 8.6 6.5 5 8.8 5 14.5 5 18.8 7.8 22 12 22Z"/><path d="M12 22c-2 0-3.2-1.5-3.2-3.4 0-1.5.8-2.7 2.2-4.2.1 1.3.8 2 1.6 2.4.1-1.4.8-2.4 1.8-3.2.5 2.6 1.5 3.6 1.5 5 0 1.9-1.5 3.4-3.9 3.4Z"/>'
+});
 let imageHistory=[],imageHistoryAt=-1,imageHistoryBook=null,restoringImageHistory=false;
 function resetImageHistory(){imageHistory=[];imageHistoryAt=-1;imageHistoryBook=book}
 function rememberImageEdit(){
@@ -73,12 +77,16 @@ action('figureActions','right','Girar direita',()=>adjust('angle',15,-3600,3600)
 action('figureActions','mirrorLeft','Espelhar para a esquerda',()=>mirrorImage(-1)),
 action('figureActions','mirrorRight','Espelhar para a direita',()=>mirrorImage(1)),
 action('figureActions','front','À frente',()=>order(true)),
-action('figureActions','back','Atrás',()=>order(false)),
-action('figureActions','trash','Apagar',()=>{if(selected==='student'){frames[current].showVideo=false;frames[current].videoPlacement=null}else frames[current].pieces=frames[current].pieces.filter(p=>p.uid!==selected);selected=null;render()})
+action('figureActions','back','Atrás',()=>order(false))
 ];
+// O botão de congelar ocupa a posição anteriormente usada pela lixeira.
+const lockButton=action('figureActions','freeze','Congelar figura',()=>{const p=piece();if(!p)return;p.locked=!p.locked;syncLockButton();render()});
+function syncLockButton(){const p=piece(),frozen=!!p?.locked;lockButton.disabled=!p;lockButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+icons[frozen?'fire':'freeze']+'</svg>';const label=frozen?'Descongelar figura':'Congelar figura';lockButton.title=label;lockButton.setAttribute('aria-label',label);lockButton.setAttribute('aria-pressed',String(frozen));}
 const undoImageButton=action('figureActions','undoEdit','Voltar',()=>restoreImageEdit(-1));
 const redoImageButton=action('figureActions','redoEdit','Refazer',()=>restoreImageEdit(1));
 [undoImageButton,redoImageButton].forEach((b,i)=>{b.classList.add('image-history-action');const label=document.createElement('span');label.textContent=i?'Refazer':'Voltar';b.append(label)});
+// A lixeira passa para a posição que antes era ocupada pelo botão de congelar.
+action('figureActions','trash','Apagar',()=>{if(selected==='student'){frames[current].showVideo=false;frames[current].videoPlacement=null}else frames[current].pieces=frames[current].pieces.filter(p=>p.uid!==selected);selected=null;render()});
 action('frameActions','copy','Duplicar',()=>{if(frames.length>=300)return message('Limite de 300 quadros');const f=clone(frames[current]);f.pieces.forEach(p=>p.uid=++uid);frames.splice(current+1,0,f);current++;selected=null;render()});
 action('frameActions','trash','Apagar',()=>{if(frames.length===1)return message('Mantenha pelo menos um quadro');frames.splice(current,1);current=Math.min(current,frames.length-1);selected=null;render()});
 const playBtn=action('frameActions','play','Assistir',togglePlay);
@@ -191,9 +199,9 @@ function renderAssets(){const root=$('assets');root.replaceChildren();root.class
 function createLayer(p,mini=false){const im=document.createElement('img');im.src=imageUrl(p.id);im.alt='';im.className=mini?'':'piece'+(selected===p.uid?' selected':'');im.style.left=p.x+'%';im.style.top=p.y+'%';im.style.width=p.size+'%';im.style.transform='translate(-50%,-50%) rotate('+p.angle+'deg) scaleX('+(p.flipX===-1?-1:1)+')';return im}
 function renderStage(){const stage=$('stage'),f=frames[current];stage.replaceChildren();if(f.background){const im=document.createElement('img');im.className='bg';im.src=imageUrl(f.background);im.alt='';stage.append(im)}
 if(!f.background&&!f.pieces.length){const hint=document.createElement('div');hint.className='stage-placeholder';hint.innerHTML='Área de Trabalho<br><small>Monte a sua cena aqui!</small>';stage.append(hint)}
-f.pieces.forEach(p=>{const im=createLayer(p);im.style.zIndex=f.pieces.indexOf(p)+1;im.onpointerdown=e=>{if(playing)return;e.preventDefault();selected=p.uid;im.setPointerCapture(e.pointerId);const r=stage.getBoundingClientRect();const move=ev=>{p.x=Math.max(0,Math.min(100,(ev.clientX-r.left)/r.width*100));p.y=Math.max(0,Math.min(100,(ev.clientY-r.top)/r.height*100));im.style.left=p.x+'%';im.style.top=p.y+'%'};im.onpointermove=move;im.onpointerup=()=>{im.onpointermove=null;im.onpointerup=null;render()};figButtons.forEach(b=>b.disabled=false)};stage.append(im)});if(f.showVideo&&testVideo){const placement=f.videoPlacement||(f.videoPlacement={x:50,y:53,size:38,angle:0});const layer=document.createElement('canvas');layer.className='student-video-layer'+(selected==='student'?' selected':'');layer.width=480;layer.height=270;layer.style.left=placement.x+'%';layer.style.top=placement.y+'%';layer.style.width=placement.size+'%';layer.style.height='auto';layer.style.transform='translate(-50%,-50%) rotate('+placement.angle+'deg) scaleX('+(placement.flipX===-1?-1:1)+')';layer.style.pointerEvents=playing?'none':'auto';layer.style.touchAction='none';layer.setAttribute('aria-label','Arraste a imagem da criança para posicioná-la');layer.onpointerdown=e=>{if(playing)return;e.preventDefault();selected='student';layer.setPointerCapture(e.pointerId);const r=stage.getBoundingClientRect();const move=ev=>{placement.x=Math.max(0,Math.min(100,(ev.clientX-r.left)/r.width*100));placement.y=Math.max(0,Math.min(100,(ev.clientY-r.top)/r.height*100));layer.style.left=placement.x+'%';layer.style.top=placement.y+'%'};layer.onpointermove=move;layer.onpointerup=()=>{layer.onpointermove=null;layer.onpointerup=null;render()};figButtons.forEach(b=>b.disabled=false)};stage.append(layer);drawKeyedFrame(layer.getContext('2d'),testVideo);if(playing)requestVideoPreview(layer)} }
+f.pieces.forEach(p=>{const im=createLayer(p);im.style.zIndex=f.pieces.indexOf(p)+1;im.onpointerdown=e=>{if(playing)return;e.preventDefault();selected=p.uid;if(p.locked){render();return}im.setPointerCapture(e.pointerId);const r=stage.getBoundingClientRect();const move=ev=>{p.x=Math.max(0,Math.min(100,(ev.clientX-r.left)/r.width*100));p.y=Math.max(0,Math.min(100,(ev.clientY-r.top)/r.height*100));im.style.left=p.x+'%';im.style.top=p.y+'%'};im.onpointermove=move;im.onpointerup=()=>{im.onpointermove=null;im.onpointerup=null;render()};figButtons.forEach(b=>b.disabled=false)};stage.append(im)});if(f.showVideo&&testVideo){const placement=f.videoPlacement||(f.videoPlacement={x:50,y:53,size:38,angle:0});const layer=document.createElement('canvas');layer.className='student-video-layer'+(selected==='student'?' selected':'');layer.width=480;layer.height=270;layer.style.left=placement.x+'%';layer.style.top=placement.y+'%';layer.style.width=placement.size+'%';layer.style.height='auto';layer.style.transform='translate(-50%,-50%) rotate('+placement.angle+'deg) scaleX('+(placement.flipX===-1?-1:1)+')';layer.style.pointerEvents=playing?'none':'auto';layer.style.touchAction='none';layer.setAttribute('aria-label','Arraste a imagem da criança para posicioná-la');layer.onpointerdown=e=>{if(playing)return;e.preventDefault();selected='student';if(placement.locked){render();return}layer.setPointerCapture(e.pointerId);const r=stage.getBoundingClientRect();const move=ev=>{placement.x=Math.max(0,Math.min(100,(ev.clientX-r.left)/r.width*100));placement.y=Math.max(0,Math.min(100,(ev.clientY-r.top)/r.height*100));layer.style.left=placement.x+'%';layer.style.top=placement.y+'%'};layer.onpointermove=move;layer.onpointerup=()=>{layer.onpointermove=null;layer.onpointerup=null;render()};figButtons.forEach(b=>b.disabled=false)};stage.append(layer);drawKeyedFrame(layer.getContext('2d'),testVideo);if(playing)requestVideoPreview(layer)} }
 function renderTimeline(){const root=$('timeline');root.replaceChildren();frames.forEach((f,i)=>{const b=document.createElement('button');b.className='frame'+(i===current?' active':'');b.setAttribute('aria-label','Quadro '+(i+1));const preview=document.createElement('div');preview.className='preview';if(f.background){const bg=document.createElement('img');bg.src=imageUrl(f.background);bg.style.cssText='inset:0;width:100%;height:100%;object-fit:cover';preview.append(bg)}f.pieces.forEach(p=>preview.append(createLayer(p,true)));const number=document.createElement('span');number.className='frame-number';number.textContent='QUADRO '+(i+1);b.append(preview,number);const dot=document.createElement('span');dot.className='narration-dot'+(f.showVideo?' enabled':'');dot.title='Mostrar ou ocultar o vídeo da criança neste quadro';dot.setAttribute('role','checkbox');dot.setAttribute('aria-checked',String(!!f.showVideo));dot.setAttribute('aria-label','Mostrar vídeo no quadro '+(i+1));dot.textContent=f.showVideo?'✓':'○';dot.onclick=e=>{e.stopPropagation();f.showVideo=!f.showVideo;if(f.showVideo){if(!frames.some(x=>x.videoStart))f.videoStart=true;f.videoPlacement ||= {x:50,y:53,size:38,angle:0}}render()};b.append(dot);b.onclick=()=>{if(playing)return;current=i;selected=null;render()};root.append(b)})}
-function render(){rememberImageEdit();renderStage();renderTimeline();figButtons.forEach(b=>b.disabled=!piece());undoImageButton.disabled=playing||imageHistoryAt<=0;redoImageButton.disabled=playing||imageHistoryAt>=imageHistory.length-1;updateSpeed();scheduleAutoSave()}
+function render(){rememberImageEdit();renderStage();renderTimeline();figButtons.forEach(b=>b.disabled=!piece());syncLockButton();undoImageButton.disabled=playing||imageHistoryAt<=0;redoImageButton.disabled=playing||imageHistoryAt>=imageHistory.length-1;updateSpeed();scheduleAutoSave()}
 function togglePlay(){
  if(playing){stopPlay();return}
  if(frames.some(f=>f.showVideo)&&!testVideo){message('Este projeto utiliza um vídeo. Abra a aba Vídeos e selecione o arquivo salvo neste iPad.');return}
@@ -283,14 +291,16 @@ function showVideoSave(blob,name){
  save.addEventListener('click',async()=>{
   if(isAppleTablet()&&navigator.share){
    const file=new File([blob],name,{type:blob.type||'video/mp4'});
+   save.disabled=true;save.textContent='ABRINDO…';
    try{
     if(navigator.canShare&&!navigator.canShare({files:[file]}))throw new Error('Este formato não pode ser compartilhado pelo iPad.');
     await navigator.share({files:[file],title:name});
-    desc.textContent='Compartilhamento concluído. Selecione “Salvar Vídeo” para guardar no app Fotos.';
+    desc.textContent='Se você selecionou “Salvar Vídeo”, o arquivo já está na galeria Fotos.';
+    save.textContent='COMPARTILHAMENTO CONCLUÍDO';
    }catch(err){
-    if(err.name==='AbortError')return;
-    desc.textContent='Não foi possível abrir o compartilhamento. Use o link “Abrir/baixar arquivo” abaixo para salvar em Arquivos.';
-    save.disabled=true;save.style.opacity='.55';
+    if(err.name==='AbortError'){save.disabled=false;save.textContent='Salvar no iPad';return}
+    desc.textContent='Não foi possível abrir o compartilhamento. Feche esta janela e tente novamente ou salve o arquivo em Arquivos.';
+    save.disabled=false;save.textContent='TENTAR NOVAMENTE';
    }
   }else{
    const a=document.createElement('a');a.href=url;a.download=name;a.textContent='Toque aqui para baixar o vídeo';
@@ -440,13 +450,20 @@ async function exportAnimation(){
   if(!ctx)throw Error('Canvas indisponível');
   const paths=[...new Set(snapshot.flatMap(f=>[f.background,...f.pieces.map(p=>p.id)]).filter(Boolean))];
   const images={};
-  message('Preparando imagens para o vídeo…');
-  for(const path of paths){
-   const data=await imageAsDataURL(path);
-   const im=new Image();im.src=data;
-   await (im.decode?im.decode():new Promise((res,rej)=>{im.onload=res;im.onerror=rej}));
-   images[path]=im;
-  }
+  message('PREPARANDO IMAGENS DO VÍDEO… 0%');
+  // Carrega poucas imagens por vez para evitar picos de memória no iPad.
+  let loadedImages=0, nextImage=0;
+  const imageWorkers=Array.from({length:Math.min(4,paths.length)},async()=>{
+   while(nextImage<paths.length){
+    const path=paths[nextImage++];
+    const data=await imageAsDataURL(path);
+    const im=new Image();im.src=data;
+    await (im.decode?im.decode():new Promise((res,rej)=>{im.onload=res;im.onerror=rej}));
+    images[path]=im;loadedImages++;
+    message('PREPARANDO IMAGENS DO VÍDEO… '+Math.round(loadedImages/Math.max(1,paths.length)*25)+'%');
+   }
+  });
+  await Promise.all(imageWorkers);
   const drawCover=(im)=>{const scale=Math.max(W/im.naturalWidth,H/im.naturalHeight),w=im.naturalWidth*scale,h=im.naturalHeight*scale;ctx.drawImage(im,(W-w)/2,(H-h)/2,w,h)};
   function drawFrame(i){
    const f=snapshot[Math.min(i,snapshot.length-1)];
@@ -461,8 +478,11 @@ async function exportAnimation(){
   // Sons: narração gravada + som do vídeo da criança, decodificados para misturar na gravação.
   const decode=ab=>new Promise((res,rej)=>{try{const p=actx.decodeAudioData(ab,res,rej);if(p&&p.catch)p.catch(rej)}catch(e){rej(e)}});
   let narration=null,studentSound=null;
-  if(actx&&audioBlob){try{narration=await decode(await audioBlob.arrayBuffer())}catch(e){console.warn('Narração não incluída:',e);message('Não foi possível incluir a narração no vídeo.')}}
-  if(actx&&includeStudent&&studentVideoBlob){try{studentSound=await decode(await studentVideoBlob.arrayBuffer())}catch(e){console.warn('Som do vídeo da criança não incluído:',e);message('Não foi possível incluir o som do vídeo da criança.')}}
+  // Decodifica as faixas de áudio em paralelo, sem bloquear a preparação uma pela outra.
+  const audioTasks=[];
+  if(actx&&audioBlob)audioTasks.push((async()=>{try{narration=await decode(await audioBlob.arrayBuffer())}catch(e){console.warn('Narração não incluída:',e);message('NÃO FOI POSSÍVEL INCLUIR A NARRAÇÃO NO VÍDEO.')}})());
+  if(actx&&includeStudent&&studentVideoBlob)audioTasks.push((async()=>{try{studentSound=await decode(await studentVideoBlob.arrayBuffer())}catch(e){console.warn('Som do vídeo da criança não incluído:',e);message('NÃO FOI POSSÍVEL INCLUIR O SOM DO VÍDEO DA CRIANÇA.')}})());
+  if(audioTasks.length){message('PREPARANDO ÁUDIO DO VÍDEO…');await Promise.all(audioTasks)}
   const student=includeStudent?ensureTestVideo():null;
   // Mudo na tela durante a exportação: o som vai direto para o arquivo e, mudo, o iPad deixa o vídeo tocar sozinho.
   if(student){student.muted=true;student.pause();await new Promise((resolve,reject)=>{if(student.readyState>=2&&Number.isFinite(student.duration))return resolve();const ok=()=>{cleanup();resolve()};const fail=()=>{cleanup();reject(new Error('Não foi possível decodificar o vídeo selecionado.'))};const cleanup=()=>{student.removeEventListener('loadeddata',ok);student.removeEventListener('error',fail)};student.addEventListener('loadeddata',ok,{once:true});student.addEventListener('error',fail,{once:true});student.load()});student.currentTime=0;}
@@ -487,6 +507,7 @@ async function exportAnimation(){
   const stopped=new Promise((resolve,reject)=>{rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};rec.onerror=e=>reject(e.error||Error('Falha na gravação'));rec.onstop=resolve});
   const duration=Math.max(total,includeStudent?videoBeginning+(student.duration||0):0,studentSound?videoBeginning+studentSound.duration:0)+0.15;
   rec.start(1000);
+  message('GERANDO VÍDEO… 0%');
   const start=performance.now(),a0=dest?actx.currentTime:0;
   if(dest){
    const play=(buf,when)=>{const s=actx.createBufferSource();s.buffer=buf;s.connect(dest);s.start(when);sources.push(s)};
@@ -495,12 +516,16 @@ async function exportAnimation(){
   }
   // Desenhar repetidamente evita congelamento do vídeo no Safari.
   await new Promise(resolve=>{
-   let last=-1;
+   let last=-1,lastProgressAt=0;
    const tick=()=>{
-    const elapsed=(performance.now()-start)/1000;
+    const now=performance.now(),elapsed=(now-start)/1000;
     const index=Math.min(N-1,Math.floor(elapsed/frameDur));
     if(student&&elapsed>=videoBeginning&&student.paused&&!student.ended)student.play().catch(()=>{});
     if(index!==last||student){drawComposite(index);last=index}
+    if(now-lastProgressAt>=900){
+     const percent=Math.min(99,Math.round(elapsed/Math.max(.1,duration)*100));
+     message('GERANDO VÍDEO… '+percent+'%');lastProgressAt=now;
+    }
     if(elapsed>=duration){drawComposite(N-1);resolve();return}
     setTimeout(tick,Math.min(33,Math.max(10,1000/fps/2)));
    };tick();
@@ -511,7 +536,7 @@ async function exportAnimation(){
   const blob=new Blob(chunks,{type:actualType});
   if(blob.size<1000)throw Error('Vídeo vazio');
   showVideoSave(blob,fileName(extension));
-  message('Vídeo preparado. Toque em Salvar no iPad para concluir.');
+  message('VÍDEO PRONTO! TOQUE EM SALVAR NO IPAD E ESCOLHA “SALVAR VÍDEO” PARA ENVIAR À GALERIA.');
  }catch(err){message('Não foi possível exportar o vídeo: '+err.message)}
  finally{if(testVideo){testVideo.pause();testVideo.muted=false}sources.forEach(s=>{try{s.stop()}catch(e){}});if(actx&&actx.state!=='closed')actx.close().catch(()=>{});if(rec&&rec.state!=='inactive')try{rec.stop()}catch(e){};stream?.getTracks().forEach(t=>t.stop());videoExporting=false}
 }
